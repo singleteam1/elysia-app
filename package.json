@@ -1,0 +1,39 @@
+{
+	"name": "elysia-app",
+	"version": "1.0.50",
+	"scripts": {
+		"dev": "bun --watch src/main.ts",
+		"build": "bun build ./src/main.ts --outdir ./dist --target bun --minify --sourcemap",
+		"start": "bun dist/main.js",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit",
+		"db:generate": "bunx prisma generate",
+		"db:migrate": "bunx prisma migrate dev",
+		"db:push": "bunx prisma db push",
+		"db:deploy": "bunx prisma migrate deploy"
+	},
+	"dependencies": {
+		"@elysiajs/openapi": "^1.4.16",
+		"@prisma/adapter-pg": "^7.10.1",
+		"@prisma/client": "^7.10.1",
+		"@sinclair/typebox": "^0.34.52",
+		"elysia": "^1.4.30",
+		"jose": "^6.2.13",
+		"pg": "^8.23.1",
+		"prisma": "^7.10.1"
+	},
+	"devDependencies": {
+		"@commitlint/cli": "^21.2.4",
+		"@commitlint/config-conventional": "^21.2.4",
+		"@commitlint/types": "^21.2.3",
+		"@trivago/prettier-plugin-sort-imports": "^6.0.2",
+		"@types/node": "^26.6.5",
+		"@types/pg": "^8.23.1",
+		"bun-types": "^1.4.3",
+		"prettier": "^3.9.10",
+		"typescript": "^7.0.2"
+	},
+	"module": "src/index.js"
+}
