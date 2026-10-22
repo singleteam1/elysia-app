@@ -10,7 +10,9 @@ const envSchema = t.Object({
 	DATABASE_URL: t.String(),
 	JWT_SECRET: t.String({ minLength: 32 }),
 	ACCESS_TOKEN_TTL: t.Number({ default: 15 * 60 }),
-	REFRESH_TOKEN_TTL: t.Number({ default: 7 * 24 * 60 * 60 })
+	REFRESH_TOKEN_TTL: t.Number({ default: 7 * 24 * 60 * 60 }),
+	RATE_LIMIT_MAX: t.Number({ default: 100 }),
+	RATE_LIMIT_WINDOW_MS: t.Number({ default: 60 * 1000 })
 })
 
 export type Env = Static<typeof envSchema>
