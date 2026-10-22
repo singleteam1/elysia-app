@@ -1,8 +1,46 @@
+import { randomUUID } from 'node:crypto'
+
+import { env } from '~/config/env'
 import { ConflictError, UnauthorizedError } from '~/lib/errors'
-import { signAccessToken } from '~/lib/security/jwt'
+import { type Role, signAccessToken } from '~/lib/security/jwt'
+import { generateRefreshToken, hashRefreshToken } from '~/lib/security/refresh-token'
 
 import type { LoginBody, RegisterBody } from './model'
-import { createUser, findUserByEmail, findUserById } from './repository'
+import {
+	createRefreshToken,
+	createUser,
+	findRefreshTokenByHash,
+	findUserByEmail,
+	findUserById,
+	revokeRefreshToken,
+	revokeRefreshTokenFamily,
+	rotateRefreshToken
+} from './repository'
+
+const refreshExpiresAt = () => new Date(Date.now() + env.REFRESH_TOKEN_TTL * 1000)
+
+const issueTokenPair = async (user: { id: string; email: string; role: Role }) => {
+	const refresh = generateRefreshToken()
+	const familyId = randomUUID()
+
+	await createRefreshToken({
+		familyId,
+		tokenHash: refresh.hash,
+		userId: user.id,
+		expiresAt: refreshExpiresAt()
+	})
+
+	const accessToken = await signAccessToken({
+		sub: user.id,
+		email: user.email,
+		role: user.role
+	})
+
+	return {
+		accessToken,
+		refreshToken: refresh.token
+	}
+}
 
 export const register = async (input: RegisterBody) => {
 	const existing = await findUserByEmail(input.email)
@@ -20,12 +58,13 @@ export const register = async (input: RegisterBody) => {
 	const user = await createUser({
 		email: input.email,
 		passwordHash,
-		name: input.name
+		name: input.name,
+		role: 'USER'
 	})
 
-	const accessToken = await signAccessToken({ sub: user.id, email: user.email })
+	const { accessToken, refreshToken } = await issueTokenPair(user)
 
-	return { accessToken, user }
+	return { accessToken, refreshToken, user }
 }
 
 export const login = async (input: LoginBody) => {
@@ -41,17 +80,84 @@ export const login = async (input: LoginBody) => {
 		throw new UnauthorizedError('Invalid email or password')
 	}
 
-	const accessToken = await signAccessToken({ sub: user.id, email: user.email })
+	const userData = {
+		id: user.id,
+		email: user.email,
+		name: user.name,
+		role: user.role,
+		createdAt: user.createdAt
+	}
+
+	const { accessToken, refreshToken } = await issueTokenPair(userData)
 
 	return {
 		accessToken,
-		user: {
-			id: user.id,
-			email: user.email,
-			name: user.name,
-			createdAt: user.createdAt
+		refreshToken,
+		user: userData
+	}
+}
+
+export const refresh = async (rawRefreshToken: string | undefined) => {
+	if (!rawRefreshToken) {
+		throw new UnauthorizedError('Refresh token required')
+	}
+
+	const tokenHash = hashRefreshToken(rawRefreshToken)
+	const existing = await findRefreshTokenByHash(tokenHash)
+
+	if (!existing || existing.expiresAt < new Date()) {
+		throw new UnauthorizedError('Invalid or expired refresh token')
+	}
+
+	if (existing.revokedAt) {
+		throw new UnauthorizedError('Refresh token revoked')
+	}
+
+	if (existing.usedAt) {
+		await revokeRefreshTokenFamily(existing.familyId)
+
+		throw new UnauthorizedError('Refresh token reuse detected. All sessions terminated.')
+	}
+
+	const user = await findUserById(existing.userId)
+
+	if (!user) {
+		throw new UnauthorizedError('User not found')
+	}
+
+	const nextRefresh = generateRefreshToken()
+
+	await rotateRefreshToken(existing.id, {
+		familyId: existing.familyId,
+		tokenHash: nextRefresh.hash,
+		userId: existing.userId,
+		expiresAt: refreshExpiresAt()
+	})
+
+	const accessToken = await signAccessToken({
+		sub: user.id,
+		email: user.email,
+		role: user.role
+	})
+
+	return {
+		accessToken,
+		refreshToken: nextRefresh.token,
+		user
+	}
+}
+
+export const logout = async (rawRefreshToken: string | undefined) => {
+	if (rawRefreshToken) {
+		const tokenHash = hashRefreshToken(rawRefreshToken)
+		const existing = await findRefreshTokenByHash(tokenHash)
+
+		if (existing && !existing.revokedAt) {
+			await revokeRefreshToken(existing.id)
 		}
 	}
+
+	return { message: 'Logged out successfully' }
 }
 
 export const getCurrentUser = async (userId: string) => {

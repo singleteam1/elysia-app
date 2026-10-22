@@ -9,7 +9,8 @@ const envSchema = t.Object({
 	APP_ADDRESS: t.String({ default: '0.0.0.0' }),
 	DATABASE_URL: t.String(),
 	JWT_SECRET: t.String({ minLength: 32 }),
-	ACCESS_TOKEN_TTL: t.Number({ default: 15 * 60 })
+	ACCESS_TOKEN_TTL: t.Number({ default: 15 * 60 }),
+	REFRESH_TOKEN_TTL: t.Number({ default: 7 * 24 * 60 * 60 })
 })
 
 export type Env = Static<typeof envSchema>
