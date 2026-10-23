@@ -97,7 +97,7 @@ export const login = async (input: LoginBody) => {
 	}
 }
 
-export const refresh = async (rawRefreshToken: string | undefined) => {
+export const refreshSession = async (rawRefreshToken: string | undefined) => {
 	if (!rawRefreshToken) {
 		throw new UnauthorizedError('Refresh token required')
 	}
@@ -125,15 +125,6 @@ export const refresh = async (rawRefreshToken: string | undefined) => {
 		throw new UnauthorizedError('User not found')
 	}
 
-	const nextRefresh = generateRefreshToken()
-
-	await rotateRefreshToken(existing.id, {
-		familyId: existing.familyId,
-		tokenHash: nextRefresh.hash,
-		userId: existing.userId,
-		expiresAt: refreshExpiresAt()
-	})
-
 	const accessToken = await signAccessToken({
 		sub: user.id,
 		email: user.email,
@@ -142,7 +133,6 @@ export const refresh = async (rawRefreshToken: string | undefined) => {
 
 	return {
 		accessToken,
-		refreshToken: nextRefresh.token,
 		user
 	}
 }

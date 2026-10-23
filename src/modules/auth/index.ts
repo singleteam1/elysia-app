@@ -12,7 +12,7 @@ import {
 	RegisterBody,
 	UserResponse
 } from './model'
-import { getCurrentUser, login, logout, refresh, register } from './service'
+import { getCurrentUser, login, logout, refreshSession, register } from './service'
 
 export const auth = new Elysia({ prefix: '/auth', tags: ['Authentication'] })
 	.use(authGuard)
@@ -75,16 +75,19 @@ export const auth = new Elysia({ prefix: '/auth', tags: ['Authentication'] })
 			}
 		}
 	)
+	.get('/me', ({ user }) => getCurrentUser(user.sub), {
+		auth: true,
+		response: 'UserResponse',
+		detail: {
+			summary: 'Get current user profile',
+			description: 'Returns profile details for the currently authenticated user.'
+		}
+	})
 	.post(
 		'/refresh',
 		async ({ cookie: { refreshToken } }) => {
 			try {
-				const result = await refresh(refreshToken.value)
-
-				refreshToken.set({
-					...getRefreshCookieOptions(),
-					value: result.refreshToken
-				})
+				const result = await refreshSession(refreshToken.value)
 
 				return {
 					accessToken: result.accessToken,
@@ -132,29 +135,6 @@ export const auth = new Elysia({ prefix: '/auth', tags: ['Authentication'] })
 				summary: 'Logout user',
 				description:
 					'Revokes the refresh token and clears the HttpOnly refresh token cookie.'
-			}
-		}
-	)
-	.get('/me', ({ user }) => getCurrentUser(user.sub), {
-		auth: true,
-		response: 'UserResponse',
-		detail: {
-			summary: 'Get current user profile',
-			description: 'Returns profile details for the currently authenticated user.'
-		}
-	})
-	.get(
-		'/admin',
-		({ user }) => ({
-			message: 'Admin access granted',
-			user
-		}),
-		{
-			roles: ['ADMIN'],
-			response: 'AdminResponse',
-			detail: {
-				summary: 'Admin only endpoint',
-				description: 'Requires an authenticated user with ADMIN role.'
 			}
 		}
 	)
