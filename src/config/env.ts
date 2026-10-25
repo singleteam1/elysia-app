@@ -12,7 +12,9 @@ const envSchema = t.Object({
 	ACCESS_TOKEN_TTL: t.Number({ default: 15 * 60 }),
 	REFRESH_TOKEN_TTL: t.Number({ default: 7 * 24 * 60 * 60 }),
 	RATE_LIMIT_MAX: t.Number({ default: 100 }),
-	RATE_LIMIT_WINDOW_MS: t.Number({ default: 60 * 1000 })
+	RATE_LIMIT_WINDOW_MS: t.Number({ default: 60 * 1000 }),
+	CORS_ORIGIN: t.String(),
+	CORS_MAX_AGE: t.Number({ default: 7200 })
 })
 
 export type Env = Static<typeof envSchema>
